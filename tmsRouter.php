@@ -166,7 +166,7 @@ class tmsRouter
      * @return string
      * @throws Exception
      */
-    public function getRout($name=null){
+    public function getRoute($name=null){
         if(is_null($name) || !isset($this->RULES[$name])|| !isset($this->RULES[$name]['url'])){
             throw new Exception ('Route not exists');
         }
