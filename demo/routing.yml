@@ -1,0 +1,8 @@
+home:
+  url: /
+  params: { action: homePage}
+testrout:
+  url: /testpath
+  params: {action: getTest}
+default:
+  params: { action: default}
