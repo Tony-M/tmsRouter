@@ -30,6 +30,12 @@ class tmsRouter
      */
     protected $RULES = array();
 
+    /**
+     * Использовать кэшь или нет
+     * @var bool
+     */
+    protected $USE_CACHE = false;
+
     private static $_instance = null;
 
     /**
@@ -53,8 +59,8 @@ class tmsRouter
             if (!file_exists($cache_path) || !is_file($cache_path)) {
                 if (!touch($cache_path)) {
                     throw new Exception ('Routing cache does not exist or undefined');
-                }else{
-                    chmod($cache_path , 0755);
+                } else {
+                    chmod($cache_path, 0755);
                     $this->CACHE_JUST_CREATED = true;
                 }
             }
@@ -65,12 +71,13 @@ class tmsRouter
         $this->readRules();
     }
 
-    public function __destruct(){
-        if($this->CACHE_JUST_CREATED){
+    public function __destruct()
+    {
+        if ($this->CACHE_JUST_CREATED) {
             $result = var_export($this->RULES, true);
-            $result = preg_replace('/[\r\n\t]/','',$result);
-            $result = preg_replace('/[ ]/','',$result);
-            $result = '<?php'.PHP_EOL. '$rules='.$result.';'.PHP_EOL.'?>';
+            $result = preg_replace('/[\r\n\t]/', '', $result);
+            $result = preg_replace('/[ ]/', '', $result);
+            $result = '<?php' . PHP_EOL . '$rules=' . $result . ';' . PHP_EOL . '?>';
             file_put_contents($this->CACHE_PATH, $result);
         }
     }
@@ -82,24 +89,55 @@ class tmsRouter
      */
     protected function readRules()
     {
-        if (!$this->CACHE_JUST_CREATED && !is_null($this->CACHE_PATH)) {
-            require_once $this->CACHE_PATH;
+        if ($this->USE_CACHE) {
+            if (!$this->CACHE_JUST_CREATED && !is_null($this->CACHE_PATH)) {
+                require_once $this->CACHE_PATH;
 
-            if (isset($rules) && is_array($rules)) {
-                $this->RULES = $rules;
+                if (isset($rules) && is_array($rules)) {
+                    $this->RULES = $rules;
+                }
+                return true;
             }
-            return true;
         }
 
         if (!is_null($this->CONFIG_PATH)) {
             $rules = Spyc::YAMLLoad($this->CONFIG_PATH);
             if (is_array($rules)) {
-                $this->RULES = $rules;
+                foreach($rules as $rule_name => $rule) {
+//                    $this->RULES = $rules;
+                    $this->addRule($rule_name, $rule);
+                }
                 return true;
             }
         }
 
         return false;
+    }
+
+    public function addRule($name=null, $rule=array()){
+        if(is_null($name)||$name==''){
+            throw new Exception('wrong route name');
+        }
+
+        if($name!='default' && !isset($rule['url'])){
+            throw new Exception('wrong route url');
+        }else{
+            if($name!='default')
+                $rule['url'] = preg_replace('/\//','\\/',$rule['url']);
+                $rule['url'] = preg_replace('/\:d/','[0-9]{1,}',$rule['url']);
+                $rule['url'] = preg_replace('/\:d/','[0-9]{1,}',$rule['url']);
+                $rule['url'] = preg_replace('/\:w/','[a-zA-Zа-яА-ЯёЁ]{1,}',$rule['url']);
+                $rule['url'] = preg_replace('/\:s/','[0-9a-zA-Zа-яА-ЯёЁ]{1,}',$rule['url']);
+
+
+        }
+
+        if(!isset($rule['params'])){
+            throw new Exception('wrong route params');
+        }
+
+        $this->RULES[$name] = $rule;
+        return true;
     }
 
     protected function __clone()
@@ -135,14 +173,15 @@ class tmsRouter
     public function findRoute()
     {
         $path = $_SERVER['PHP_SELF'];
-        $path = '/desire/?s=2/';
-        $path = preg_replace('/(\?.*)$/','',$path);
-        $path = preg_replace('/(\/)$/','',$path);
+        //$path = '/resource/sdpdate';
+        $path = preg_replace('/(\?.*)$/', '', $path);
+        $path = preg_replace('/(\/)$/', '', $path);
 
-        foreach($this->RULES as $rule){
-            if(!isset($rule['url']) || !isset($rule['params']))continue;
+        foreach ($this->RULES as $rule) {
+            if (!isset($rule['url']) || !isset($rule['params'])) continue;
 
-            if($rule['url']==$path){
+//            if ($rule['url'] == $path) {
+            if (preg_match('/^'.$rule['url'].'$/', $path)) {
                 return $rule['params'];
             }
         }
@@ -153,8 +192,9 @@ class tmsRouter
      * Пытается вернуть параметры обработчика маршрута по умолчанию
      * @return Array|null
      */
-    public  function findDefaultRoute(){
-        if(isset($this->RULES['default']) && isset($this->RULES['default']['params'])){
+    public function findDefaultRoute()
+    {
+        if (isset($this->RULES['default']) && isset($this->RULES['default']['params'])) {
             return $this->RULES['default']['params'];
         }
         return null;
@@ -166,8 +206,9 @@ class tmsRouter
      * @return string
      * @throws Exception
      */
-    public function getRoute($name=null){
-        if(is_null($name) || !isset($this->RULES[$name])|| !isset($this->RULES[$name]['url'])){
+    public function getRoute($name = null)
+    {
+        if (is_null($name) || !isset($this->RULES[$name]) || !isset($this->RULES[$name]['url'])) {
             throw new Exception ('Route not exists');
         }
         return $this->RULES[$name]['url'];
