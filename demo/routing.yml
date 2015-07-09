@@ -4,5 +4,14 @@ home:
 testrout:
   url: /testpath
   params: {action: getTest}
+resource:
+  url: /resource/:d
+  params: {action: gerResource}
+smb:
+  url: /resource/:w
+  params: {action: gerWord}
+resource_update:
+  url: /resource/:d/update
+  params: {action: gerUpdateResource}
 default:
   params: { action: default}
